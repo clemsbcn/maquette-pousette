@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SmartBudget App</title>
+    <title>SmartBudget & Courses</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -13,18 +13,18 @@
             darkMode: 'class',
             theme: {
                 extend: {
+                    colors: {
+                        buddyDark: '#000000',
+                        buddyCard: '#1C1C1E',
+                        buddyGray: '#8E8E93',
+                    },
                     animation: {
                         'pop': 'pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
-                        'slide-up': 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards'
                     },
                     keyframes: {
                         pop: {
-                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '0%': { transform: 'scale(0.9)', opacity: '0' },
                             '100%': { transform: 'scale(1)', opacity: '1' },
-                        },
-                        slideUp: {
-                            '0%': { transform: 'translateY(100%)', opacity: '0' },
-                            '100%': { transform: 'translateY(0)', opacity: '1' },
                         }
                     }
                 }
@@ -32,200 +32,207 @@
         }
     </script>
     <style>
-        /* Optimisations pour mobile */
         body { -webkit-tap-highlight-color: transparent; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-white transition-colors duration-300">
+<body class="bg-gray-50 text-gray-900 dark:bg-buddyDark dark:text-white transition-colors duration-300">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Fonction pour la vibration (haptique)
+        // Fonction pour la vibration
         const vibrate = (pattern = 50) => {
-            if (navigator.vibrate) {
-                navigator.vibrate(pattern);
-            }
+            if (navigator.vibrate) navigator.vibrate(pattern);
+        };
+
+        // --- COMPOSANT MASCOTTE RATON LAVEUR (SVG) ---
+        const RaccoonMascot = ({ tab, className="w-12 h-12" }) => (
+            <svg viewBox="0 0 100 100" className={className}>
+                {/* Oreilles */}
+                <polygon points="20,40 10,15 40,25" fill="#718096" />
+                <polygon points="80,40 90,15 60,25" fill="#718096" />
+                <polygon points="22,38 15,22 35,28" fill="#E2E8F0" />
+                <polygon points="78,38 85,22 65,28" fill="#E2E8F0" />
+                
+                {/* Tête */}
+                <ellipse cx="50" cy="55" rx="45" ry="35" fill="#A0AEC0" />
+                
+                {/* Masque de voleur (Raton) */}
+                <path d="M 10 50 Q 50 70 90 50 Q 80 30 50 40 Q 20 30 10 50 Z" fill="#2D3748" />
+                
+                {/* Museau blanc et Nez */}
+                <ellipse cx="50" cy="70" rx="20" ry="15" fill="#E2E8F0" />
+                <ellipse cx="50" cy="68" rx="6" ry="4" fill="#1A202C" />
+                
+                {/* Yeux Bleus */}
+                <circle cx="35" cy="48" r="9" fill="#FFFFFF" />
+                <circle cx="35" cy="48" r="5" fill="#3B82F6" /> {/* Bleu */}
+                <circle cx="33" cy="46" r="2" fill="#FFFFFF" /> {/* Reflet */}
+                
+                <circle cx="65" cy="48" r="9" fill="#FFFFFF" />
+                <circle cx="65" cy="48" r="5" fill="#3B82F6" /> {/* Bleu */}
+                <circle cx="63" cy="46" r="2" fill="#FFFFFF" /> {/* Reflet */}
+
+                {/* Accessoires selon l'onglet */}
+                {tab === 'budget' && <circle cx="80" cy="75" r="12" fill="#FBBF24" stroke="#D97706" strokeWidth="2" />}
+                {tab === 'courses' && <path d="M 75 80 Q 80 60 85 80 Z" fill="#EF4444" /> /* Pomme simplifiée */}
+                {tab === 'plaisirs' && <polygon points="70,70 90,75 80,90" fill="#F6E05E" stroke="#DD6B20" strokeWidth="2"/> /* Part de pizza */}
+                {tab === 'settings' && <path d="M 20 45 L 80 45" stroke="#1A202C" strokeWidth="3" /> /* Lunettes trait */}
+            </svg>
+        );
+
+        // --- COMPOSANT MODALE (Sorti de App pour éviter le bug du clavier) ---
+        const Modal = ({ isOpen, onClose, title, children }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-pop">
+                    <div className="bg-white dark:bg-buddyCard w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 shadow-2xl">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold dark:text-white">{title}</h3>
+                            <button onClick={() => { vibrate(30); onClose(); }} className="bg-gray-200 dark:bg-gray-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-gray-800 dark:text-white">✕</button>
+                        </div>
+                        {children}
+                    </div>
+                </div>
+            );
         };
 
         function App() {
             // ÉTATS GLOBAUX
             const [isLogged, setIsLogged] = useState(false);
             const [activeTab, setActiveTab] = useState('budget');
-            const [theme, setTheme] = useState('light');
-            const [location, setLocation] = useState('');
+            const [theme, setTheme] = useState('dark'); // Thème sombre par défaut !
+            const [coords, setCoords] = useState(null);
             const [toast, setToast] = useState(null);
 
-            // ÉTATS DU BUDGET (Perso et Joint)
-            const [viewMode, setViewMode] = useState('perso'); // 'perso' ou 'joint'
-            const [categoriesPerso, setCategoriesPerso] = useState([]);
-            const [categoriesJoint, setCategoriesJoint] = useState([]);
+            // ÉTATS BUDGET
+            const [categories, setCategories] = useState([]);
             
-            // ÉTATS COMPTE JOINT
-            const [jointStatus, setJointStatus] = useState('none'); // 'none', 'pending', 'active'
-            const [friendEmail, setFriendEmail] = useState('');
-
             // ÉTATS COURSES
             const [shoppingList, setShoppingList] = useState([]);
             const [selectedStore, setSelectedStore] = useState('Lidl');
             const [searchQuery, setSearchQuery] = useState('');
 
-            // ÉTATS MODALES (Popups)
+            // ÉTATS PLAISIRS (GPS)
+            const [radius, setRadius] = useState(5); // en km
+
+            // MODALES & FORMULAIRES
             const [showCatModal, setShowCatModal] = useState(false);
             const [showTransModal, setShowTransModal] = useState(false);
-            
-            // FORMULAIRES
-            const [newCat, setNewCat] = useState({ name: '', total: '', icon: '🍔', color: 'bg-blue-500' });
+            const [newCat, setNewCat] = useState({ name: '', total: '', icon: '🍔', color: '#3B82F6' });
             const [newTrans, setNewTrans] = useState({ amount: '', catId: '', label: '' });
 
-            // Base de données simulée pour l'IA
+            // CATALOGUE SIMULÉ ÉTENDU
             const foodDatabase = [
-                { id: 1, name: 'Lait (6x1L)', nutri: 'A', prices: { Lidl: 5.40, Leclerc: 5.75, Carrefour: 5.99 } },
-                { id: 2, name: 'Poulet rôti', nutri: 'B', prices: { Lidl: 6.50, Leclerc: 6.20, Carrefour: 6.90 } },
-                { id: 3, name: 'Pâtes (500g)', nutri: 'A', prices: { Lidl: 0.89, Leclerc: 0.95, Carrefour: 1.10 } },
-                { id: 4, name: 'Pizza Surgelée', nutri: 'D', prices: { Lidl: 2.50, Leclerc: 2.80, Carrefour: 3.10 } },
+                { id: 1, name: 'Lait demi-écrémé (6x1L)', nutri: 'A', prices: { Lidl: 5.40, Leclerc: 5.65, 'Super U': 5.95, Aldi: 5.35 } },
+                { id: 2, name: 'Poulet rôti entier', nutri: 'B', prices: { Lidl: 6.50, Leclerc: 6.20, 'Super U': 7.10, Aldi: 6.45 } },
+                { id: 3, name: 'Pâtes Coquillettes (500g)', nutri: 'A', prices: { Lidl: 0.89, Leclerc: 0.95, 'Super U': 1.15, Aldi: 0.85 } },
+                { id: 4, name: 'Pizza Surgelée Royale', nutri: 'D', prices: { Lidl: 2.50, Leclerc: 2.80, 'Super U': 3.20, Aldi: 2.45 } },
+                { id: 5, name: 'Oeufs Plein Air (x12)', nutri: 'A', prices: { Lidl: 2.99, Leclerc: 3.10, 'Super U': 3.40, Aldi: 2.95 } },
+                { id: 6, name: 'Beurre Doux (250g)', nutri: 'E', prices: { Lidl: 2.10, Leclerc: 2.15, 'Super U': 2.45, Aldi: 2.05 } },
             ];
 
-            // ---------------- FONCTIONS UTILITAIRES ----------------
-            
-            const showToast = (msg) => {
+            // --- FONCTIONS UTILITAIRES ---
+            const showToastMsg = (msg) => {
                 setToast(msg);
                 setTimeout(() => setToast(null), 3000);
             };
 
-            const handleVibrateClick = (callback) => {
+            const geolocate = (callback) => {
                 vibrate(50);
-                if (callback) callback();
+                if (navigator.geolocation) {
+                    showToastMsg("Recherche GPS en cours...");
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                            showToastMsg("📍 Localisation trouvée !");
+                            if (callback) callback(pos.coords.latitude, pos.coords.longitude);
+                        },
+                        (err) => showToastMsg("❌ Erreur GPS (Activez la localisation)")
+                    );
+                } else {
+                    showToastMsg("Le GPS n'est pas supporté sur ce navigateur.");
+                }
             };
 
-            const openMaps = (query) => {
-                vibrate([30, 50, 30]);
-                window.open(`https://www.google.com/maps/search/${encodeURIComponent(query)}+${encodeURIComponent(location)}`, '_blank');
+            const openMapsForTakeout = () => {
+                vibrate([30, 50]);
+                if (coords) {
+                    window.open(`https://www.google.com/maps/search/restaurant+à+emporter/@${coords.lat},${coords.lng},14z`, '_blank');
+                } else {
+                    window.open(`https://www.google.com/maps/search/restaurant+à+emporter+autour+de+moi`, '_blank');
+                }
             };
 
-            // ---------------- GESTION DU COMPTE JOINT ----------------
-            
-            const inviteFriend = () => {
-                if(!friendEmail) return;
-                vibrate(50);
-                setJointStatus('pending');
-                showToast("Invitation envoyée !");
-                // Simule l'acceptation après 4 secondes pour la démonstration
-                setTimeout(() => {
-                    vibrate([100, 50, 100]); // Grosse vibration de succès
-                    setJointStatus('active');
-                    showToast(`${friendEmail} a accepté votre invitation !`);
-                }, 4000);
+            const openMapsForStore = (storeName) => {
+                vibrate([30, 50]);
+                if (coords) {
+                    window.open(`https://www.google.com/maps/search/supermarché+${storeName}/@${coords.lat},${coords.lng},13z`, '_blank');
+                } else {
+                    window.open(`https://www.google.com/maps/search/supermarché+${storeName}+autour+de+moi`, '_blank');
+                }
             };
 
-            // ---------------- GESTION BUDGET ----------------
+            const autoSelectNearestStore = () => {
+                geolocate((lat, lng) => {
+                    // Simulation : On choisit un magasin au hasard pour montrer que l'action a eu lieu
+                    const stores = ['Lidl', 'Leclerc', 'Super U', 'Aldi'];
+                    const randomStore = stores[Math.floor(Math.random() * stores.length)];
+                    setSelectedStore(randomStore);
+                    showToastMsg(`🛒 ${randomStore} est le plus proche !`);
+                });
+            };
 
-            const currentCategories = viewMode === 'perso' ? categoriesPerso : categoriesJoint;
-            const setCurrentCategories = viewMode === 'perso' ? setCategoriesPerso : setCategoriesJoint;
-
+            // --- BUDGET LOGIC ---
             const addCategory = () => {
                 if(!newCat.name || !newCat.total) return;
-                vibrate([30, 30]);
-                setCurrentCategories([...currentCategories, { 
-                    id: Date.now(), 
-                    name: newCat.name, 
-                    total: parseFloat(newCat.total), 
-                    spent: 0, 
-                    icon: newCat.icon, 
-                    color: newCat.color,
-                    history: []
-                }]);
+                vibrate(50);
+                setCategories([...categories, { ...newCat, id: Date.now(), total: parseFloat(newCat.total), spent: 0 }]);
                 setShowCatModal(false);
-                setNewCat({ name: '', total: '', icon: '🍔', color: 'bg-blue-500' });
-                showToast("Catégorie ajoutée 🎉");
+                setNewCat({ name: '', total: '', icon: '🍔', color: '#3B82F6' });
             };
 
             const addTransaction = () => {
                 if(!newTrans.amount || !newTrans.catId) return;
-                vibrate([30, 30]);
-                
-                const updatedCats = currentCategories.map(cat => {
+                vibrate([50, 100]);
+                const updated = categories.map(cat => {
                     if(cat.id === parseInt(newTrans.catId)) {
-                        return { 
-                            ...cat, 
-                            spent: cat.spent + parseFloat(newTrans.amount),
-                            history: [{label: newTrans.label || 'Dépense', amount: parseFloat(newTrans.amount)}, ...cat.history]
-                        };
+                        return { ...cat, spent: cat.spent + parseFloat(newTrans.amount) };
                     }
                     return cat;
                 });
-
-                setCurrentCategories(updatedCats);
+                setCategories(updated);
                 setShowTransModal(false);
                 setNewTrans({ amount: '', catId: '', label: '' });
-                showToast("Dépense enregistrée 💸");
             };
 
-            const totalBudget = currentCategories.reduce((sum, cat) => sum + cat.total, 0);
-            const totalSpent = currentCategories.reduce((sum, cat) => sum + cat.spent, 0);
-            const remaining = totalBudget - totalSpent;
-
-            // ---------------- GESTION COURSES ----------------
+            const totalBudget = categories.reduce((sum, cat) => sum + cat.total, 0);
+            const totalSpent = categories.reduce((sum, cat) => sum + cat.spent, 0);
             
-            const addToCart = (item) => {
-                vibrate(30);
-                setShoppingList([...shoppingList, item]);
-                setSearchQuery('');
-                showToast(`${item.name} ajouté !`);
-            };
-
-            const cartTotal = shoppingList.reduce((sum, item) => sum + item.prices[selectedStore], 0).toFixed(2);
-
-            // ---------------- RENDU UI ----------------
-
-            // Composant Modale réutilisable
-            const Modal = ({ isOpen, onClose, title, children }) => {
-                if (!isOpen) return null;
-                return (
-                    <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-pop">
-                        <div className="bg-white dark:bg-gray-800 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-slide-up">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-bold">{title}</h3>
-                                <button onClick={() => handleVibrateClick(onClose)} className="bg-gray-200 dark:bg-gray-700 w-8 h-8 rounded-full flex items-center justify-center font-bold">✕</button>
-                            </div>
-                            {children}
-                        </div>
-                    </div>
-                );
-            };
-
-            const LockedScreen = ({ title }) => (
-                <div className="flex flex-col items-center justify-center py-20 text-center px-4 animate-pop">
-                    <div className="text-6xl mb-6">🔒</div>
-                    <h2 className="text-2xl font-bold mb-2">Section verrouillée</h2>
-                    <p className="text-gray-500 mb-6">Créez votre compte gratuit pour y accéder.</p>
-                    <button onClick={() => handleVibrateClick(() => setActiveTab('settings'))} className="bg-blue-600 text-white font-bold px-8 py-4 rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg">
-                        Créer mon compte
-                    </button>
-                </div>
-            );
+            // Calcul pour le graphique Donut (SVG Circle)
+            const radiusCircle = 70;
+            const circumference = 2 * Math.PI * radiusCircle;
+            const spendPercentage = totalBudget > 0 ? Math.min(totalSpent / totalBudget, 1) : 0;
+            const strokeDashoffset = circumference - (spendPercentage * circumference);
 
             return (
                 <div className={`min-h-screen pb-24 ${theme === 'dark' ? 'dark' : ''}`}>
-                    {/* Toast Notification (Dopamine) */}
                     {toast && (
-                        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full shadow-2xl z-50 animate-pop font-bold flex items-center gap-2">
-                            ✨ {toast}
+                        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-6 py-3 rounded-full shadow-2xl z-50 animate-pop font-bold whitespace-nowrap">
+                            {toast}
                         </div>
                     )}
 
-                    {/* Header */}
-                    <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md p-4 sticky top-0 z-10 shadow-sm border-b dark:border-gray-700">
+                    {/* HEADER */}
+                    <header className="bg-white/90 dark:bg-buddyDark/90 backdrop-blur-xl p-4 sticky top-0 z-10 border-b dark:border-gray-800">
                         <div className="max-w-4xl mx-auto flex justify-between items-center">
-                            <h1 className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">SmartBudget</h1>
-                            {isLogged && (
-                                <button onClick={() => openMaps(location)} className="flex gap-1 items-center text-xs font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-full hover:bg-gray-200 transition active:scale-95">
-                                    📍 {location || 'Définir ville'}
-                                </button>
-                            )}
+                            <div className="flex items-center gap-3">
+                                <RaccoonMascot tab={activeTab} className="w-10 h-10" />
+                                <h1 className="text-xl font-extrabold tracking-tight dark:text-white">Smart<span className="text-blue-500">Budget</span></h1>
+                            </div>
                         </div>
                     </header>
 
@@ -235,144 +242,127 @@
                         {activeTab === 'budget' && (
                             <div className="space-y-6 animate-pop">
                                 
-                                {/* Toggle Compte Joint / Perso */}
-                                {jointStatus === 'active' && (
-                                    <div className="flex bg-gray-200 dark:bg-gray-700 rounded-full p-1 mb-6">
-                                        <button onClick={() => handleVibrateClick(() => setViewMode('perso'))} className={`flex-1 py-2 rounded-full font-bold text-sm transition-all ${viewMode === 'perso' ? 'bg-white dark:bg-gray-800 shadow-md text-blue-600' : 'text-gray-500'}`}>Mon Budget</button>
-                                        <button onClick={() => handleVibrateClick(() => setViewMode('joint'))} className={`flex-1 py-2 rounded-full font-bold text-sm transition-all ${viewMode === 'joint' ? 'bg-white dark:bg-gray-800 shadow-md text-purple-600' : 'text-gray-500'}`}>Budget Commun</button>
-                                    </div>
-                                )}
-
-                                {/* Résumé Global */}
-                                <div className="text-center py-8 bg-white dark:bg-gray-800 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl"></div>
-                                    <p className="text-gray-500 dark:text-gray-400 font-bold mb-2 uppercase text-xs tracking-wider">Reste à dépenser</p>
-                                    <h2 className="text-6xl font-extrabold text-gray-800 dark:text-white mb-6 tracking-tighter">
-                                        {remaining.toFixed(2)} <span className="text-3xl text-gray-400">€</span>
-                                    </h2>
+                                {/* Graphique Donut (Style Buddy) */}
+                                <div className="bg-white dark:bg-buddyCard rounded-[2rem] p-6 shadow-sm flex flex-col items-center relative overflow-hidden">
+                                    <h2 className="text-gray-500 dark:text-buddyGray font-bold uppercase text-xs tracking-widest mb-6">Reste à dépenser</h2>
                                     
-                                    <div className="px-8">
-                                        <div className="w-full bg-gray-100 dark:bg-gray-700 h-4 rounded-full overflow-hidden">
-                                            <div className={`h-full rounded-full transition-all duration-500 ${totalSpent > totalBudget ? 'bg-red-500' : 'bg-gradient-to-r from-blue-500 to-purple-500'}`} style={{width: `${totalBudget === 0 ? 0 : Math.min((totalSpent/totalBudget)*100, 100)}%`}}></div>
+                                    <div className="relative w-48 h-48 flex items-center justify-center">
+                                        {/* Cercle de fond */}
+                                        <svg className="absolute inset-0 w-full h-full transform -rotate-90">
+                                            <circle cx="96" cy="96" r="70" fill="transparent" stroke={theme === 'dark' ? '#333' : '#E5E7EB'} strokeWidth="16" />
+                                            {/* Cercle de progression */}
+                                            <circle 
+                                                cx="96" cy="96" r="70" 
+                                                fill="transparent" 
+                                                stroke="#3B82F6" 
+                                                strokeWidth="16" 
+                                                strokeLinecap="round"
+                                                strokeDasharray={circumference}
+                                                strokeDashoffset={strokeDashoffset}
+                                                className="transition-all duration-1000 ease-out"
+                                            />
+                                        </svg>
+                                        <div className="text-center z-10">
+                                            <p className="text-3xl font-black dark:text-white">{(totalBudget - totalSpent).toFixed(2)}€</p>
                                         </div>
-                                        <p className="text-xs font-bold text-gray-400 mt-3">{totalSpent.toFixed(2)}€ / {totalBudget.toFixed(2)}€ budgétés</p>
                                     </div>
-                                    
-                                    <div className="flex gap-3 justify-center mt-8 px-4">
-                                        <button onClick={() => handleVibrateClick(() => setShowTransModal(true))} className="flex-1 bg-gray-900 dark:bg-white dark:text-gray-900 text-white font-bold py-4 px-4 rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2">
-                                            <span>➖</span> Dépense
-                                        </button>
-                                        <button onClick={() => handleVibrateClick(() => setShowCatModal(true))} className="flex-1 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-bold py-4 px-4 rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-2">
-                                            <span>➕</span> Catégorie
-                                        </button>
+
+                                    <p className="text-sm font-bold text-gray-400 mt-4">{totalSpent.toFixed(2)}€ dépensés / {totalBudget.toFixed(2)}€</p>
+
+                                    <div className="flex w-full gap-3 mt-6">
+                                        <button onClick={() => setShowTransModal(true)} className="flex-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold py-4 rounded-2xl active:scale-95 transition-all">➖ Dépense</button>
+                                        <button onClick={() => setShowCatModal(true)} className="flex-1 bg-blue-100 text-blue-700 dark:bg-[#2C2C2E] dark:text-blue-400 font-bold py-4 rounded-2xl active:scale-95 transition-all">➕ Catégorie</button>
                                     </div>
                                 </div>
 
                                 {/* Liste des Catégories */}
-                                <div className="space-y-4 mt-6">
-                                    {currentCategories.length === 0 ? (
-                                        <div className="text-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-3xl">
-                                            <p className="text-gray-500 font-medium">Aucune catégorie pour le moment.</p>
-                                            <p className="text-sm text-gray-400 mt-1">Commencez par créer "Alimentation" ou "Loyer" !</p>
-                                        </div>
-                                    ) : (
-                                        currentCategories.map(cat => (
-                                            <div key={cat.id} className="bg-white dark:bg-gray-800 p-5 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
-                                                <div className="flex justify-between items-center mb-4">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-inner ${cat.color} text-white`}>
-                                                            {cat.icon}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-bold text-lg">{cat.name}</p>
-                                                            <p className="text-sm font-medium text-gray-500">{(cat.total - cat.spent).toFixed(2)}€ restants</p>
-                                                        </div>
+                                <div className="space-y-4">
+                                    {categories.map(cat => (
+                                        <div key={cat.id} className="bg-white dark:bg-buddyCard p-5 rounded-[2rem] shadow-sm flex flex-col gap-3">
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl text-white" style={{backgroundColor: cat.color}}>
+                                                        {cat.icon}
                                                     </div>
-                                                    <div className="text-right">
-                                                        <p className="font-extrabold text-xl">{cat.spent.toFixed(2)} €</p>
+                                                    <div>
+                                                        <p className="font-bold text-lg dark:text-white">{cat.name}</p>
+                                                        <p className="text-xs font-medium text-gray-500">{(cat.total - cat.spent).toFixed(2)}€ restants</p>
                                                     </div>
                                                 </div>
-                                                <div className="w-full bg-gray-100 dark:bg-gray-700 h-2.5 rounded-full overflow-hidden">
-                                                    <div className={`h-full rounded-full transition-all duration-500 ${cat.color}`} style={{width: `${Math.min((cat.spent/cat.total)*100, 100)}%`}}></div>
-                                                </div>
+                                                <p className="font-extrabold text-xl dark:text-white">{cat.spent.toFixed(2)}€</p>
                                             </div>
-                                        ))
-                                    )}
+                                            <div className="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden">
+                                                <div className="h-full rounded-full transition-all duration-500" style={{backgroundColor: cat.color, width: `${Math.min((cat.spent/cat.total)*100, 100)}%`}}></div>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}
 
                         {/* ONGLET COURSES */}
                         {activeTab === 'courses' && (
-                            !isLogged ? <LockedScreen title="Courses IA"/> : (
+                            !isLogged ? <div className="text-center py-20"><p>Créez un compte dans Réglages</p></div> : (
                             <div className="space-y-6 animate-pop">
-                                <h2 className="text-2xl font-extrabold">🛒 Ma Liste Intelligente</h2>
                                 
-                                {/* Recherche */}
-                                <div className="relative">
-                                    <input 
-                                        type="text" 
-                                        placeholder="Ajouter un article (ex: Lait, Poulet...)" 
-                                        className="w-full p-4 pl-12 rounded-2xl bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700 shadow-sm focus:border-blue-500 outline-none font-medium transition-colors"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                    />
-                                    <span className="absolute left-4 top-4 text-xl">🔍</span>
-                                </div>
+                                <div className="bg-white dark:bg-buddyCard p-6 rounded-[2rem] shadow-sm">
+                                    <h2 className="text-xl font-bold mb-4 dark:text-white flex items-center gap-2">🛒 Catalogue & Liste</h2>
+                                    
+                                    {/* Localisation Auto */}
+                                    <button onClick={autoSelectNearestStore} className="w-full mb-4 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold py-3 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all">
+                                        📍 Trouver le supermarché le plus proche
+                                    </button>
 
-                                {/* Résultats de recherche simulés */}
-                                {searchQuery && (
-                                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-blue-100 dark:border-gray-700 overflow-hidden animate-slide-up">
-                                        {foodDatabase.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase())).map(food => (
-                                            <div key={food.id} className="flex justify-between items-center p-4 border-b dark:border-gray-700 last:border-0">
-                                                <span className="font-bold">{food.name}</span>
-                                                <button onClick={() => handleVibrateClick(() => addToCart(food))} className="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold active:scale-95 transition-all">Ajouter</button>
-                                            </div>
+                                    {/* Sélecteur de magasins */}
+                                    <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
+                                        {['Lidl', 'Leclerc', 'Super U', 'Aldi'].map(store => (
+                                            <button key={store} onClick={() => { vibrate(30); setSelectedStore(store); }} 
+                                                className={`px-5 py-2.5 rounded-full font-bold whitespace-nowrap transition-all ${selectedStore === store ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
+                                                {store}
+                                            </button>
                                         ))}
                                     </div>
-                                )}
 
-                                {/* Magasins & IA */}
-                                {shoppingList.length > 0 && (
-                                    <>
-                                        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 hide-scrollbar">
-                                            {['Lidl', 'Leclerc', 'Carrefour'].map(store => (
-                                                <button 
-                                                    key={store}
-                                                    onClick={() => handleVibrateClick(() => setSelectedStore(store))}
-                                                    className={`px-6 py-3 rounded-2xl font-extrabold whitespace-nowrap transition-all duration-300 ${selectedStore === store ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-lg scale-105' : 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}
-                                                >
-                                                    {store}
-                                                </button>
-                                            ))}
-                                        </div>
+                                    {/* Recherche */}
+                                    <input type="text" placeholder={`Rechercher chez ${selectedStore}...`} value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} 
+                                        className="w-full mt-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 outline-none font-medium dark:text-white" />
 
-                                        <div className="p-5 bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/40 dark:to-emerald-900/40 rounded-3xl border border-green-200 dark:border-green-800">
-                                            <div className="flex justify-between items-end mb-2">
-                                                <p className="font-extrabold text-green-800 dark:text-green-300">Total estimé chez {selectedStore}</p>
-                                                <p className="text-3xl font-black text-green-600 dark:text-green-400">{cartTotal} €</p>
-                                            </div>
-                                            <p className="text-sm font-medium text-green-700 dark:text-green-500 mb-4">
-                                                L'IA a comparé les prix. C'est le meilleur choix !
-                                            </p>
-                                            <button onClick={() => openMaps(`Supermarché ${selectedStore}`)} className="w-full bg-green-600 text-white font-bold py-4 rounded-xl active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2">
-                                                📍 Y aller avec Maps
-                                            </button>
-                                        </div>
-
-                                        {/* Liste */}
-                                        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 p-2">
-                                            {shoppingList.map((item, idx) => (
-                                                <div key={idx} className="flex justify-between items-center p-4 border-b last:border-0 dark:border-gray-700">
-                                                    <div className="flex items-center gap-3">
-                                                        <input type="checkbox" className="w-6 h-6 rounded-lg accent-blue-600" />
-                                                        <span className="font-bold">{item.name}</span>
+                                    {/* Résultats simulés */}
+                                    {searchQuery && (
+                                        <div className="mt-2 border dark:border-gray-700 rounded-xl overflow-hidden">
+                                            {foodDatabase.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase())).map(food => (
+                                                <div key={food.id} className="flex justify-between items-center p-3 border-b dark:border-gray-700 bg-white dark:bg-buddyCard last:border-0">
+                                                    <div>
+                                                        <span className="font-bold text-sm dark:text-white">{food.name}</span>
+                                                        <span className="ml-2 text-xs font-bold text-gray-400">({food.prices[selectedStore]}€)</span>
                                                     </div>
-                                                    <span className="font-bold text-gray-500">{item.prices[selectedStore].toFixed(2)} €</span>
+                                                    <button onClick={() => { vibrate(30); setShoppingList([...shoppingList, food]); setSearchQuery(''); showToastMsg("Ajouté !"); }} 
+                                                        className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-3 py-1.5 rounded-lg font-bold text-sm">Ajouter</button>
                                                 </div>
                                             ))}
                                         </div>
-                                    </>
+                                    )}
+                                </div>
+
+                                {/* Mon Panier */}
+                                {shoppingList.length > 0 && (
+                                    <div className="bg-white dark:bg-buddyCard p-6 rounded-[2rem] shadow-sm">
+                                        <div className="flex justify-between items-end mb-4">
+                                            <h3 className="font-bold dark:text-white">Ma Liste</h3>
+                                            <p className="text-2xl font-black text-blue-600 dark:text-blue-400">
+                                                {shoppingList.reduce((sum, item) => sum + item.prices[selectedStore], 0).toFixed(2)} €
+                                            </p>
+                                        </div>
+                                        {shoppingList.map((item, idx) => (
+                                            <div key={idx} className="flex justify-between py-2 border-b dark:border-gray-700 last:border-0">
+                                                <span className="dark:text-white font-medium">{item.name}</span>
+                                                <span className="text-gray-500 font-bold">{item.prices[selectedStore].toFixed(2)}€</span>
+                                            </div>
+                                        ))}
+                                        <button onClick={() => openMapsForStore(selectedStore)} className="w-full mt-6 bg-green-600 text-white font-bold py-4 rounded-xl active:scale-95 transition-all">
+                                            🚘 Naviguer vers {selectedStore}
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                             )
@@ -380,33 +370,32 @@
 
                         {/* ONGLET PLAISIRS */}
                         {activeTab === 'plaisirs' && (
-                            !isLogged ? <LockedScreen title="Petits Plaisirs"/> : (
+                            !isLogged ? <div className="text-center py-20"><p>Créez un compte dans Réglages</p></div> : (
                             <div className="space-y-6 animate-pop">
-                                <h2 className="text-2xl font-extrabold">🍕 Restos Autour de moi</h2>
-                                <p className="text-gray-500 font-medium">Détecté près de : {location}</p>
-                                
-                                <div className="space-y-4">
-                                    <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 bg-red-500 text-white text-xs font-black px-4 py-1 rounded-bl-xl">PROMO -20%</div>
-                                        <h3 className="font-black text-xl mb-1 mt-2">McDonald's</h3>
-                                        <p className="text-sm text-gray-500 font-medium mb-4">Fast-Food • Ouvert</p>
-                                        
-                                        <div className="flex gap-2">
-                                            <button onClick={() => openMaps("McDonalds")} className="flex-1 bg-gray-100 dark:bg-gray-700 py-3 rounded-xl font-bold active:scale-95 transition-all">📍 M'y rendre</button>
-                                            <button onClick={() => {
-                                                setNewTrans({amount: '15', catId: currentCategories[0]?.id || '', label: 'McDo'});
-                                                setShowTransModal(true);
-                                            }} className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold active:scale-95 transition-all shadow-lg">🛒 Payer (~15€)</button>
-                                        </div>
-                                    </div>
+                                <div className="bg-white dark:bg-buddyCard rounded-[2rem] p-6 shadow-sm">
+                                    <h2 className="text-2xl font-extrabold mb-2 dark:text-white flex items-center gap-2">🍕 Restos À Emporter</h2>
+                                    <p className="text-gray-500 dark:text-buddyGray font-medium mb-6">Trouvez de quoi vous faire plaisir autour de vous.</p>
 
-                                    <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
-                                        <h3 className="font-black text-xl mb-1">Sushi Shop</h3>
-                                        <p className="text-sm text-gray-500 font-medium mb-4">Japonais • À 1.2km</p>
-                                        
-                                        <div className="flex gap-2">
-                                            <button onClick={() => openMaps("Sushi")} className="flex-1 bg-gray-100 dark:bg-gray-700 py-3 rounded-xl font-bold active:scale-95 transition-all">📍 M'y rendre</button>
+                                    <div className="space-y-6">
+                                        {/* GPS Auto */}
+                                        <button onClick={() => geolocate()} className="w-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all">
+                                            {coords ? "✅ Position GPS acquise" : "📍 Localiser mon appareil"}
+                                        </button>
+
+                                        {/* Curseur Rayon */}
+                                        <div>
+                                            <div className="flex justify-between font-bold text-sm mb-2 dark:text-white">
+                                                <span>Rayon de recherche</span>
+                                                <span className="text-blue-500">{radius} km</span>
+                                            </div>
+                                            <input type="range" min="1" max="20" value={radius} onChange={(e) => setRadius(e.target.value)} className="w-full accent-blue-600" />
                                         </div>
+
+                                        {/* Action Google Maps */}
+                                        <button onClick={openMapsForTakeout} className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all">
+                                            🔍 Voir les Fast-Foods à emporter
+                                        </button>
+                                        <p className="text-center text-xs text-gray-500">Ouvre directement Google Maps avec le filtre "À emporter".</p>
                                     </div>
                                 </div>
                             </div>
@@ -416,86 +405,26 @@
                         {/* ONGLET REGLAGES */}
                         {activeTab === 'settings' && (
                             <div className="space-y-6 animate-pop">
-                                <h2 className="text-2xl font-extrabold">⚙️ Réglages</h2>
-                                
                                 {!isLogged ? (
-                                    <div className="bg-white dark:bg-gray-800 p-8 rounded-[2rem] shadow-lg border border-gray-100 dark:border-gray-700 text-center">
-                                        <h3 className="text-2xl font-black mb-2">Bienvenue !</h3>
-                                        <p className="text-gray-500 font-medium mb-8">Créez votre compte pour commencer à budgéter et utiliser l'IA.</p>
-                                        
-                                        <div className="space-y-4 text-left">
-                                            <div>
-                                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Votre Ville (Pour Google Maps)</label>
-                                                <input type="text" placeholder="Ex: Paris, Lyon..." onChange={(e)=>setLocation(e.target.value)} className="w-full mt-2 p-4 bg-gray-50 dark:bg-gray-700 rounded-2xl outline-none font-bold focus:ring-2 focus:ring-blue-500" />
-                                            </div>
-                                            <button onClick={() => {
-                                                if(!location) { showToast("Veuillez entrer une ville"); return; }
-                                                vibrate([50, 50, 50]);
-                                                setIsLogged(true);
-                                                setActiveTab('budget');
-                                                showToast("Compte créé avec succès !");
-                                            }} className="w-full bg-blue-600 text-white p-4 rounded-2xl font-extrabold text-lg active:scale-95 transition-all shadow-xl shadow-blue-200 dark:shadow-none mt-4">
-                                                Démarrer l'aventure 🚀
-                                            </button>
-                                        </div>
+                                    <div className="bg-white dark:bg-buddyCard p-8 rounded-[2rem] text-center">
+                                        <RaccoonMascot tab="settings" className="w-24 h-24 mx-auto mb-4" />
+                                        <h2 className="text-2xl font-black mb-6 dark:text-white">Créer mon espace</h2>
+                                        <button onClick={() => { vibrate([50,50]); setIsLogged(true); setActiveTab('budget'); }} className="w-full bg-blue-600 text-white p-4 rounded-2xl font-bold active:scale-95 transition-all">
+                                            Démarrer sans inscription
+                                        </button>
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        {/* Section Profil */}
-                                        <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm flex items-center gap-4">
-                                            <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-500 rounded-2xl flex items-center justify-center text-3xl shadow-lg">😎</div>
-                                            <div>
-                                                <p className="font-black text-xl">Mon Profil</p>
-                                                <p className="text-gray-500 font-medium">📍 {location}</p>
-                                            </div>
-                                        </div>
-
-                                        {/* Section Compte Joint */}
-                                        <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm">
-                                            <h3 className="font-black text-lg mb-4 flex items-center gap-2">🤝 Compte Joint</h3>
-                                            
-                                            {jointStatus === 'none' && (
-                                                <div>
-                                                    <p className="text-sm text-gray-500 mb-4">Invitez un(e) partenaire pour gérer un budget commun séparé de votre budget perso.</p>
-                                                    <div className="flex gap-2">
-                                                        <input type="email" placeholder="Email de l'ami" value={friendEmail} onChange={e=>setFriendEmail(e.target.value)} className="flex-1 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none font-medium" />
-                                                        <button onClick={inviteFriend} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold active:scale-95 transition-all">Inviter</button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            {jointStatus === 'pending' && (
-                                                <div className="bg-orange-50 dark:bg-orange-900/30 text-orange-600 p-4 rounded-xl font-bold flex items-center gap-2">
-                                                    ⏳ En attente de {friendEmail}...
-                                                </div>
-                                            )}
-                                            {jointStatus === 'active' && (
-                                                <div className="bg-green-50 dark:bg-green-900/30 text-green-600 p-4 rounded-xl font-bold flex items-center justify-between">
-                                                    <span>✅ Lié avec {friendEmail}</span>
-                                                    <span className="text-2xl">👩‍❤️‍👨</span>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Autres Réglages */}
-                                        <div className="bg-white dark:bg-gray-800 rounded-3xl p-2 shadow-sm">
-                                            <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
-                                                <span className="font-bold">Mode Sombre</span>
-                                                <button onClick={() => {
-                                                    vibrate(30);
-                                                    setTheme(theme === 'light' ? 'dark' : 'light');
-                                                }} className={`w-14 h-8 rounded-full p-1 transition-colors ${theme === 'dark' ? 'bg-blue-600' : 'bg-gray-300'}`}>
-                                                    <div className={`w-6 h-6 bg-white rounded-full transition-transform ${theme === 'dark' ? 'translate-x-6' : ''}`}></div>
-                                                </button>
-                                            </div>
-                                            <button onClick={() => {
-                                                vibrate([50, 100]);
-                                                setIsLogged(false);
-                                                setActiveTab('budget');
-                                                setJointStatus('none');
-                                            }} className="w-full text-left p-4 text-red-500 font-bold">
-                                                Déconnexion
+                                        <div className="bg-white dark:bg-buddyCard p-6 rounded-[2rem] flex justify-between items-center">
+                                            <span className="font-bold dark:text-white">Mode Sombre (Buddy)</span>
+                                            <button onClick={() => { vibrate(30); setTheme(theme === 'light' ? 'dark' : 'light'); }} 
+                                                className={`w-14 h-8 rounded-full p-1 transition-colors ${theme === 'dark' ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                                                <div className={`w-6 h-6 bg-white rounded-full transition-transform ${theme === 'dark' ? 'translate-x-6' : ''}`}></div>
                                             </button>
                                         </div>
+                                        <button onClick={() => setIsLogged(false)} className="w-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-bold p-4 rounded-[2rem]">
+                                            Réinitialiser l'application
+                                        </button>
                                     </div>
                                 )}
                             </div>
@@ -503,77 +432,51 @@
 
                     </main>
 
-                    {/* Navbar Bas */}
-                    <nav className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg border-t dark:border-gray-700 fixed bottom-0 w-full pb-safe pt-2 px-2 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-40">
+                    {/* NAVBAR BAS */}
+                    <nav className="bg-white/90 dark:bg-buddyCard/90 backdrop-blur-xl border-t dark:border-gray-800 fixed bottom-0 w-full pb-safe pt-2 px-2 z-40">
                         <div className="max-w-md mx-auto flex justify-between items-center px-6 pb-4">
                             {[
                                 { id: 'budget', icon: '💼', label: 'Budget' },
-                                { id: 'courses', icon: '🛒', label: 'Courses', locked: !isLogged },
-                                { id: 'plaisirs', icon: '🍕', label: 'Plaisirs', locked: !isLogged },
-                                { id: 'settings', icon: '⚙️', label: 'Réglages', alert: !isLogged }
+                                { id: 'courses', icon: '🛒', label: 'Courses' },
+                                { id: 'plaisirs', icon: '🍕', label: 'Plaisirs' },
+                                { id: 'settings', icon: '⚙️', label: 'Réglages' }
                             ].map(item => (
-                                <button 
-                                    key={item.id}
-                                    onClick={() => handleVibrateClick(() => setActiveTab(item.id))} 
-                                    className={`flex flex-col items-center p-2 transition-all duration-300 relative ${activeTab === item.id ? 'text-blue-600 scale-110 -translate-y-2' : 'text-gray-400 hover:text-gray-600'}`}
-                                >
-                                    {item.locked && <span className="absolute -top-1 -right-1 text-xs">🔒</span>}
-                                    {item.alert && <span className="absolute top-1 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>}
-                                    <span className="text-2xl mb-1 filter drop-shadow-sm">{item.icon}</span>
+                                <button key={item.id} onClick={() => { vibrate(30); setActiveTab(item.id); }} 
+                                    className={`flex flex-col items-center p-2 transition-all duration-300 ${activeTab === item.id ? 'text-blue-600 -translate-y-2' : 'text-gray-400 dark:text-buddyGray'}`}>
+                                    <span className="text-2xl mb-1">{item.icon}</span>
                                     <span className="text-[10px] font-extrabold">{item.label}</span>
-                                    {activeTab === item.id && <div className="absolute -bottom-2 w-1 h-1 bg-blue-600 rounded-full"></div>}
+                                    {activeTab === item.id && <div className="absolute -bottom-2 w-1.5 h-1.5 bg-blue-600 rounded-full"></div>}
                                 </button>
                             ))}
                         </div>
                     </nav>
 
-                    {/* MODALES */}
+                    {/* MODALES INSÉRÉES ICI */}
                     <Modal isOpen={showCatModal} onClose={() => setShowCatModal(false)} title="Nouvelle Catégorie">
                         <div className="space-y-4">
-                            <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase">Nom</label>
-                                <input type="text" placeholder="Ex: Courses, Loyer..." value={newCat.name} onChange={e=>setNewCat({...newCat, name: e.target.value})} className="w-full mt-1 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none font-bold" />
+                            <input type="text" placeholder="Nom (ex: Loyer)" value={newCat.name} onChange={e=>setNewCat({...newCat, name: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-[#2C2C2E] dark:text-white rounded-xl outline-none font-bold" />
+                            <input type="number" placeholder="Budget (€)" value={newCat.total} onChange={e=>setNewCat({...newCat, total: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-[#2C2C2E] dark:text-white rounded-xl outline-none font-bold" />
+                            <div className="flex gap-2 pt-2">
+                                {['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6'].map(color => (
+                                    <button key={color} onClick={()=>setNewCat({...newCat, color})} style={{backgroundColor: color}} className={`w-10 h-10 rounded-full transition-all ${newCat.color === color ? 'ring-4 ring-offset-2 ring-gray-800 scale-110' : ''}`}></button>
+                                ))}
                             </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase">Budget Mensuel (€)</label>
-                                <input type="number" placeholder="Ex: 400" value={newCat.total} onChange={e=>setNewCat({...newCat, total: e.target.value})} className="w-full mt-1 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none font-bold text-lg" />
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase">Couleur</label>
-                                <div className="flex gap-2 mt-2">
-                                    {['bg-blue-500', 'bg-orange-500', 'bg-purple-500', 'bg-green-500', 'bg-pink-500'].map(color => (
-                                        <button key={color} onClick={()=>setNewCat({...newCat, color})} className={`w-10 h-10 rounded-full ${color} ${newCat.color === color ? 'ring-4 ring-offset-2 ring-gray-300 dark:ring-gray-600 scale-110' : ''} transition-all`}></button>
-                                    ))}
-                                </div>
-                            </div>
-                            <button onClick={addCategory} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl mt-4 active:scale-95 transition-transform shadow-lg">Créer la catégorie</button>
+                            <button onClick={addCategory} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl mt-4 active:scale-95 transition-all">Créer</button>
                         </div>
                     </Modal>
 
                     <Modal isOpen={showTransModal} onClose={() => setShowTransModal(false)} title="Ajouter une Dépense">
                         <div className="space-y-4">
-                            {currentCategories.length === 0 ? (
-                                <p className="text-center font-bold text-red-500">Créez d'abord une catégorie !</p>
-                            ) : (
+                            {categories.length === 0 ? <p className="text-red-500 font-bold text-center">Créez une catégorie d'abord !</p> : (
                                 <>
-                                    <div className="text-center">
-                                        <input type="number" placeholder="0.00" value={newTrans.amount} onChange={e=>setNewTrans({...newTrans, amount: e.target.value})} className="w-full text-center text-5xl font-black bg-transparent outline-none py-4 text-gray-900 dark:text-white" autoFocus />
-                                        <span className="text-gray-500 font-bold">Euros</span>
+                                    <div className="text-center pb-4">
+                                        <input type="number" placeholder="0.00" value={newTrans.amount} onChange={e=>setNewTrans({...newTrans, amount: e.target.value})} className="w-full text-center text-5xl font-black bg-transparent outline-none text-gray-900 dark:text-white" autoFocus />
                                     </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-gray-500 uppercase">Description</label>
-                                        <input type="text" placeholder="Ex: McDo, Lidl..." value={newTrans.label} onChange={e=>setNewTrans({...newTrans, label: e.target.value})} className="w-full mt-1 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none font-bold" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-gray-500 uppercase">Imputer à la catégorie</label>
-                                        <select value={newTrans.catId || ''} onChange={e=>setNewTrans({...newTrans, catId: e.target.value})} className="w-full mt-1 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none font-bold appearance-none">
-                                            <option value="" disabled>Choisir une catégorie...</option>
-                                            {currentCategories.map(cat => (
-                                                <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <button onClick={addTransaction} className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold py-4 rounded-xl mt-4 active:scale-95 transition-transform shadow-lg">Valider la dépense</button>
+                                    <select value={newTrans.catId} onChange={e=>setNewTrans({...newTrans, catId: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-[#2C2C2E] dark:text-white rounded-xl outline-none font-bold">
+                                        <option value="" disabled>Choisir la catégorie...</option>
+                                        {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                                    </select>
+                                    <button onClick={addTransaction} className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold py-4 rounded-xl mt-4 active:scale-95 transition-all">Valider</button>
                                 </>
                             )}
                         </div>
