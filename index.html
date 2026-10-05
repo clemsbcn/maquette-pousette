@@ -79,7 +79,7 @@
             
             // FORMULAIRES
             const [newCat, setNewCat] = useState({ name: '', total: '', icon: '🍔', color: 'bg-blue-500' });
-            const [newTrans, setNewTrans] = useState({ amount: '', catId: null, label: '' });
+            const [newTrans, setNewTrans] = useState({ amount: '', catId: '', label: '' });
 
             // Base de données simulée pour l'IA
             const foodDatabase = [
@@ -160,7 +160,7 @@
 
                 setCurrentCategories(updatedCats);
                 setShowTransModal(false);
-                setNewTrans({ amount: '', catId: null, label: '' });
+                setNewTrans({ amount: '', catId: '', label: '' });
                 showToast("Dépense enregistrée 💸");
             };
 
@@ -528,7 +528,7 @@
                     </nav>
 
                     {/* MODALES */}
-                    <Modal isOpen="{showCatModal}" onClose="{()"> setShowCatModal(false)} title="Nouvelle Catégorie">
+                    <Modal isOpen={showCatModal} onClose={() => setShowCatModal(false)} title="Nouvelle Catégorie">
                         <div className="space-y-4">
                             <div>
                                 <label className="text-xs font-bold text-gray-500 uppercase">Nom</label>
@@ -550,7 +550,7 @@
                         </div>
                     </Modal>
 
-                    <Modal isOpen="{showTransModal}" onClose="{()"> setShowTransModal(false)} title="Ajouter une Dépense">
+                    <Modal isOpen={showTransModal} onClose={() => setShowTransModal(false)} title="Ajouter une Dépense">
                         <div className="space-y-4">
                             {currentCategories.length === 0 ? (
                                 <p className="text-center font-bold text-red-500">Créez d'abord une catégorie !</p>
